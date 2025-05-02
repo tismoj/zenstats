@@ -42,8 +42,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/dreamsofcode-io/zenstats:latest
-            ghcr.io/dreamsofcode-io/zenstats:${{ github.sha }}
+            ghcr.io/tismoj/zenstats:latest
+            ghcr.io/tismoj/zenstats:${{ github.sha }}
 
   deploy:
     runs-on: ubuntu-latest
