@@ -6,7 +6,7 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--entryPoints.websecure.address=:443"
       - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.email=tismoj-gamedev@trackmyownfiles.com"
+      - "--certificatesresolvers.myresolver.acme.email=elliott@zenful.site"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
@@ -26,12 +26,10 @@ services:
 
   web:
     image: ghcr.io/dreamsofcode-io/zenstats:${GIT_COMMIT_HASH:-latest}
-#    image: ghcr.io/dreamsofcode-io/zenstats:broken-quote
-#    image: ghcr.io/dreamsofcode-io/zenstats:baaf221054f44ec2b6d85f60e94b70a0619665be
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.web.loadbalancer.server.port=8080"
-      - "traefik.http.routers.web.rule=Host(`contabo-cvps-n1.trackmyownfiles.com`)"
+      - "traefik.http.routers.web.rule=Host(`zenful.site`)"
       - "traefik.http.routers.web.entrypoints=websecure"
       - "traefik.http.routers.web.tls.certresolver=myresolver"
     secrets:
@@ -45,9 +43,6 @@ services:
       - POSTGRES_SSLMODE=disable
     deploy:
       update_config:
-        parallelism: 1
-        max_failure_ratio: 0.80
-        failure_action: rollback
         order: start-first
     depends_on:
       - db
