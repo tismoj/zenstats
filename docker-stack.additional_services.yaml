@@ -11,6 +11,8 @@ services:
       - "--entrypoints.web.address=:80"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--accesslog=true"
+      - "--accesslog.filepath=/var/log/traefik/access.log"
     ports:
       - mode: host
         protocol: tcp
@@ -23,6 +25,8 @@ services:
     volumes:
       - letsencrypt:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock
+      - traefik-data:/data
+      - /DockerContainers/traefik_logs:/var/log/traefik
 
   web:
     image: ghcr.io/tismoj/zenstats:${GIT_COMMIT_HASH:-latest}
@@ -83,6 +87,7 @@ volumes:
   db-data:
   letsencrypt:
   n8n-data:
+  traefik-data:
 
 secrets:
   db-password:
