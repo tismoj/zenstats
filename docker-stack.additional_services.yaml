@@ -11,6 +11,9 @@ services:
       - "--entrypoints.web.address=:80"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      # Add new entrypoints for Minio ports if you want Traefik to handle TLS on them
+      - "--entrypoints.minio-server.address=:9000"
+      - "--entrypoints.minio-console.address=:9001"
       - "--accesslog=true"
       - "--accesslog.filepath=/var/log/traefik/access.log"
     ports:
@@ -22,6 +25,15 @@ services:
         protocol: tcp
         published: 443
         target: 443
+      # Publish the new entrypoint ports on the host if needed for external access
+      - mode: host
+        protocol: tcp
+        published: 9000
+        target: 9000
+      - mode: host
+        protocol: tcp
+        published: 9001
+        target: 9001
     volumes:
       - letsencrypt:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock
@@ -87,12 +99,45 @@ services:
       - N8N_PORT=443
       - N8N_PROTOCOL=https
 
+  minio:
+    image: quay.io/minio/minio
+    labels:
+      - "traefik.enable=true"
+      # Minio Server (Port 9000)
+      - "traefik.http.services.minio-server.loadbalancer.server.port=9000"
+      - "traefik.http.routers.minio-server.rule=Host(`minio.contabo-cvps-n1.trackmyownfiles.com`)"
+      - "traefik.http.routers.minio-server.entrypoints=minio-server" # Use the new entrypoint
+      - "traefik.http.routers.minio-server.service=minio-server@docker" # Explicitly link to the 'minio-server' service
+      # If you want TLS on this port, uncomment the following
+      - "traefik.http.routers.minio-server.tls=true"
+      - "traefik.http.routers.minio-server.tls.certresolver=myresolver"
+      # Minio Console (Port 9001)
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+      - "traefik.http.routers.minio-console.rule=Host(`minio.contabo-cvps-n1.trackmyownfiles.com`)"
+      - "traefik.http.routers.minio-console.entrypoints=minio-console" # Use the new entrypoint
+      - "traefik.http.routers.minio-console.service=minio-console@docker" # Explicitly link to the 'minio-console' service
+      # TLS is generally not needed for the console on a separate port, but you can add it if desired
+      - "traefik.http.routers.minio-console.tls=true"
+      - "traefik.http.routers.minio-console.tls.certresolver=myresolver"
+    volumes:
+      - minio-data:/data
+    secrets:
+      - minio-root-password
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD_FILE=/run/secrets/minio-root-password
+    command: ["server", "/data", "--console-address", ":9001"]
+
 volumes:
   db-data:
   letsencrypt:
   n8n-data:
+  minio-data:
+    external: true
   traefik-data:
 
 secrets:
   db-password:
+    external: true
+  minio-root-password:
     external: true
