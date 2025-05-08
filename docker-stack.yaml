@@ -132,6 +132,7 @@ volumes:
   db-data:
   letsencrypt:
   n8n-data:
+    external: true
   minio-data:
     external: true
   traefik-data:
