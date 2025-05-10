@@ -132,6 +132,7 @@ services:
     image: baserow/baserow:1.32.1
     labels:
       - "traefik.enable=true"
+      - "traefik.http.services.baserow.loadbalancer.server.port=80"
       - "traefik.http.routers.baserow.rule=Host(`baserow.contabo-cvps-n1.trackmyownfiles.com`)"
       - "traefik.http.routers.baserow.entrypoints=websecure"
       - "traefik.http.routers.baserow.tls.certresolver=myresolver"
