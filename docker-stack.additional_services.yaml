@@ -2,18 +2,22 @@ services:
   traefik:
     image: traefik:v3.1
     command:
+#      - "--api=true"
+#      - "--api.insecure=true"
       - "--providers.docker"
       - "--providers.docker.exposedbydefault=false"
       - "--entryPoints.websecure.address=:443"
       - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.email=tismoj-gamedev@trackmyownfiles.com"
+      - "--certificatesresolvers.myresolver.acme.email=${SSL_EMAIL}"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       # Add new entrypoints for Minio ports if you want Traefik to handle TLS on them
-      - "--entrypoints.minio-server.address=:9000"
+#      - "--entrypoints.minio-server.address=:9000"
       - "--entrypoints.minio-console.address=:9001"
+#      - "--entrypoints.kokoro.address=:8880"
+#      - "--entrypoints.ncat.address=:8080"
       - "--accesslog=true"
       - "--accesslog.filepath=/var/log/traefik/access.log"
     ports:
@@ -26,10 +30,6 @@ services:
         published: 443
         target: 443
       # Publish the new entrypoint ports on the host if needed for external access
-      - mode: host
-        protocol: tcp
-        published: 9000
-        target: 9000
       - mode: host
         protocol: tcp
         published: 9001
@@ -47,7 +47,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.web.loadbalancer.server.port=8080"
-      - "traefik.http.routers.web.rule=Host(`contabo-cvps-n1.trackmyownfiles.com`)"
+      - "traefik.http.routers.web.rule=Host(`${WEB_APP_DOMAIN}`)"
       - "traefik.http.routers.web.entrypoints=websecure"
       - "traefik.http.routers.web.tls.certresolver=myresolver"
     secrets:
@@ -89,7 +89,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.n8n.loadbalancer.server.port=443"
-      - "traefik.http.routers.n8n.rule=Host(`n8n.contabo-cvps-n1.trackmyownfiles.com`)"
+      - "traefik.http.routers.n8n.rule=Host(`${N8N_APP_DOMAIN}`)"
       - "traefik.http.routers.n8n.entrypoints=websecure"
       - "traefik.http.routers.n8n.tls.certresolver=myresolver"
     volumes:
@@ -105,11 +105,11 @@ services:
       - "traefik.enable=true"
       # Minio Server (Port 9000)
       - "traefik.http.services.minio-server.loadbalancer.server.port=9000"
-      - "traefik.http.routers.minio-server.rule=Host(`minio.contabo-cvps-n1.trackmyownfiles.com`)"
-      - "traefik.http.routers.minio-server.entrypoints=minio-server" # Use the new entrypoint
+      - "traefik.http.routers.minio-server.rule=Host(`${MINIO_APP_DOMAIN}`)"
+      - "traefik.http.routers.minio-server.entrypoints=websecure"
       - "traefik.http.routers.minio-server.service=minio-server@docker" # Explicitly link to the 'minio-server' service
       # If you want TLS on this port, uncomment the following
-      - "traefik.http.routers.minio-server.tls=true"
+ #     - "traefik.http.routers.minio-server.tls=true"
       - "traefik.http.routers.minio-server.tls.certresolver=myresolver"
       # Minio Console (Port 9001)
       - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
@@ -129,18 +129,58 @@ services:
     command: ["server", "/data", "--console-address", ":9001"]
 
   baserow:
-    image: baserow/baserow:1.32.1
+    image: baserow/baserow:1.33.2
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.baserow.loadbalancer.server.port=80"
-      - "traefik.http.routers.baserow.rule=Host(`baserow.contabo-cvps-n1.trackmyownfiles.com`)"
+      - "traefik.http.routers.baserow.rule=Host(`${BASEROW_APP_DOMAIN}`)"
       - "traefik.http.routers.baserow.entrypoints=websecure"
       - "traefik.http.routers.baserow.tls.certresolver=myresolver"
     volumes:
       - baserow-data:/baserow/data
     environment:
       - BASEROW_PUBLIC_URL=https://baserow.contabo-cvps-n1.trackmyownfiles.com
-    restart: unless-stopped
+
+  kokoro:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:v0.2.2
+#    labels:
+#      - "traefik.enable=true"
+#      # Kokoro-TTS-CPU (Port 8880)
+#      - "traefik.http.services.kokoro.loadbalancer.server.port=8880"
+#      - "traefik.http.routers.kokoro.rule=Host(`${KOKORO_APP_DOMAIN}`)"
+#      - "traefik.http.routers.kokoro.entrypoints=kokoro" # Use the new entrypoint
+#      - "traefik.http.routers.kokoro.service=kokoro@docker" # Explicitly link to the 'kokoro' service
+#      # If you want TLS on this port, uncomment the following
+#      - "traefik.http.routers.kokoro.tls=true"
+#      - "traefik.http.routers.kokoro.tls.certresolver=myresolver"
+
+  ncat:
+    image: stephengpope/no-code-architects-toolkit:latest
+    labels:
+      - "traefik.enable=true"
+      # no-code-architects-toolkit (Port 8080)
+      - "traefik.http.services.ncat.loadbalancer.server.port=8080"
+      - "traefik.http.routers.ncat.rule=Host(`${NCAT_APP_DOMAIN}`)"
+      - "traefik.http.routers.ncat.entrypoints=websecure"
+#      - "traefik.http.routers.ncat.entrypoints=web,websecure"
+#      - "traefik.http.routers.ncat.service=ncat@docker" # Explicitly link to the 'nca' service
+      # If you want TLS on this port, uncomment the following
+#      - "traefik.http.routers.ncat.tls=true"
+      - "traefik.http.routers.ncat.tls.certresolver=myresolver"
+#    secrets:
+#      - NCAT_API_KEY
+#      - S3_ACCESS_KEY
+#      - S3_SECRET_KEY
+    environment:
+      - API_KEY="${NCAT_API_KEY}"
+      - S3_ACCESS_KEY="${S3_ACCESS_KEY}"
+      - S3_SECRET_KEY="${S3_SECRET_KEY}"
+#      - API_KEY_FILE=/run/secrets/NCAT_API_KEY
+#      - S3_ACCESS_KEY_FILE=/run/secrets/S3_ACCESS_KEY
+#      - S3_SECRET_KEY_FILE=/run/secrets/S3_SECRET_KEY
+      - S3_ENDPOINT_URL="${S3_ENDPOINT_URL}"
+      - S3_REGION="${S3_REGION}"
+      - S3_BUCKET_NAME="${S3_BUCKET_NAME}"
 
 volumes:
   baserow-data:
@@ -158,3 +198,9 @@ secrets:
     external: true
   minio-root-password:
     external: true
+#  NCAT_API_KEY:
+#    external: true
+#  S3_ACCESS_KEY:
+#    external: true
+#  S3_SECRET_KEY:
+#    external: true
