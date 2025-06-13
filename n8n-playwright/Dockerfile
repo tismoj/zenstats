@@ -36,8 +36,7 @@ USER node
 WORKDIR /usr/src/app
 
 # 6. Install the 'playwright' Node.js package *locally* for the n8n application using pnpm.
-#    This is crucial for module resolution given n8n's pnpm usage.
-RUN pnpm add playwright # <--- CHANGE THIS LINE FROM `npm install` TO `pnpm add`
-
-# The base image's entrypoint will run n8n as the 'node' user automatically.
+#    This directly places it into node_modules/playwright relative to WORKDIR,
+#    which is often more reliably resolved by n8n's Code Node sandbox.
+RUN npm install playwright
 
