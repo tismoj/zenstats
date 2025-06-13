@@ -1,3 +1,16 @@
 tmp/
 static/css/style.css
 .env
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# For your specific components:
+my-playwright-scraper/node_modules/
+# If you have an .env file inside my-playwright-scraper as well:
+my-playwright-scraper/.env
+
+# Playwright browser installations (typically in user's home dir, but good to add if locally cached)
+.cache/playwright/

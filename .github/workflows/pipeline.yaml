@@ -1,11 +1,11 @@
 name: pipeline
 on:
- push:
-   branches:
-     - "main"
+  push:
+    branches:
+      - "main"
 
 permissions:
-  packages: write
+  packages: write # Necessary for pushing to ghcr.io
 
 jobs:
   run-tests:
@@ -21,8 +21,35 @@ jobs:
       - name: Test with the Go CLI
         run: go test ./...
 
-  build-and-push-image:
+  build-and-push-zenstats-image: # Renamed this job for clarity
     runs-on: ubuntu-latest
+    needs:
+      - run-tests # Zenstats build depends on tests (as currently configured)
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: https://ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Zenstats Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: . # Build context is the root directory for zenstats
+          push: true
+          tags: |
+            ghcr.io/tismoj/zenstats:latest
+            ghcr.io/tismoj/zenstats:${{ github.sha }}
+
+  build-and-push-n8n-playwright-image: # NEW JOB for n8n-playwright
+    runs-on: ubuntu-latest
+    # This job doesn't necessarily need to wait for run-tests,
+    # but for consistent dependencies, you can keep it or remove it.
+    # If removed, it can run in parallel with `run-tests` and `build-and-push-zenstats-image`.
     needs:
       - run-tests
     steps:
@@ -36,22 +63,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push n8n-playwright Docker image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./n8n-playwright/ # Specify the subdirectory for n8n-playwright's Dockerfile
           push: true
           tags: |
-            ghcr.io/tismoj/zenstats:latest
-            ghcr.io/tismoj/zenstats:${{ github.sha }}
+            ghcr.io/tismoj/n8n-playwright:latest
+            ghcr.io/tismoj/n8n-playwright:${{ github.sha }}
+          # No `cache-from` or `cache-to` needed unless you want to explicitly manage build cache layers.
+          # The action uses built-in cache mechanisms often sufficient.
 
   deploy:
     runs-on: ubuntu-latest
     needs:
-      - build-and-push-image
+      - build-and-push-zenstats-image # Now depends on Zenstats image being built
+      - build-and-push-n8n-playwright-image # And depends on n8n-playwright image being built
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4 # Recommended to update to v4 for consistency and latest features
 
     - name: create env file
       run: |
